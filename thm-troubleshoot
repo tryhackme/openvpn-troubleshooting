@@ -216,7 +216,7 @@ fi
 
 
 #Check that the tun0 IP is in the right range
-if ! ip a show tun0 | grep -qoE "10\.(2|4|6|8|9|11|13|14)\.[0-9]{1,3}\.[0-9]{1,3}" | head -1; then
+if ! ip a show tun0 | grep -qoE "10\.(2|4|6|8|9|11|13|14|50)\.[0-9]{1,3}\.[0-9]{1,3}" | head -1; then
 	colour red "[-] tun0 ip is in the wrong range: $(ip addr show tun0 | grep "inet " | awk '{print $2}')" 1
 	read -p "Would you like the script to attempt to fix this (Y/n)? " choice
 	case "$choice" in
@@ -230,7 +230,7 @@ if ! ip a show tun0 | grep -qoE "10\.(2|4|6|8|9|11|13|14)\.[0-9]{1,3}\.[0-9]{1,3
 			ip link delete tun0
 			if connect; then
 				exit 0
-			elif ! ip a | grep -qoE "10\.(2|4|6|8|9|11|13|14)\.[0-9]{1,3}\.[0-9]{1,3}" | head -1; then
+			elif ! ip a | grep -qoE "10\.(2|4|6|8|9|11|13|14|50)\.[0-9]{1,3}\.[0-9]{1,3}" | head -1; then
 				colour red "[-] Fatal Error: tun0 IP still in the wrong range: $(ip addr show tun0 | grep "inet " | awk '{print $2}')" 1
 				printf "Please try switching servers and/or regenerating your VPN config\n"
 				colour red "[-] Exiting" 2
@@ -271,7 +271,7 @@ colour process "[+] Confirming connectivity" 1
 if [ $(ping -c 1 -q 10\.$(ip addr show tun0 | grep "inet " | awk -F"." '{print $2}')\.0\.1 >&/dev/null; echo $?) -eq 0 ];then
 	colour green "[+] Connectivity checks completed!" 2
 	colour green "[+] You are connected to the TryHackMe Network" 2
-	printf "Your TryHackMe IP address is: $(ip a show tun0 | grep -oE "10\.(2|4|6|8|9|11|13|14)\.[0-9]{1,3}\.[0-9]{1,3}" | head -1)\n"
+	printf "Your TryHackMe IP address is: $(ip a show tun0 | grep -oE "10\.(2|4|6|8|9|11|13|14|50)\.[0-9]{1,3}\.[0-9]{1,3}" | head -1)\n"
 	colour green "Happy Hacking!" 3
 else
 	colour red "[-] Something went wrong -- please ask for further assistance in the TryHackMe Discord server, subreddit, or forum" 3
