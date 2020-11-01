@@ -7,5 +7,7 @@ Usage:
 * Run the script by typing `sudo` followed by the path to the script into your terminal and pressing enter. If the script is in your downloads, it will be the following command: `sudo ~/Downloads/thm-troubleshoot`.
 * The script will instruct you on how to proceed from there.
 
+**Disclaimer -- this script is designed to work on Kali, Ubuntu, or other Debian based systems to solve basic OpenVPN errors. If you're using a non-recommended distribution then it is assumed that you can also troubleshoot these errors manually** 
+
 Any question or issues (or if connectivity problems persist), please ask in the [TryHackMe Discord server](https://discord.gg/F7ERYzz).
 Happy Hacking!
