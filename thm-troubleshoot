@@ -1,7 +1,7 @@
 #!/bin/bash
 #TryHackMe VPN Troubleshooting
-#June, 2020
-#V1.4
+#Jan, 2021
+#V1.5
 #MuirlandOracle
 
 #Define Colours
@@ -268,10 +268,10 @@ fi
 
 #Final Check
 colour process "[+] Confirming connectivity" 1
-if [ $(ping -c 1 -q 10\.$(ip addr show tun0 | grep "inet " | awk -F"." '{print $2}')\.0\.1 >&/dev/null; echo $?) -eq 0 ];then
+if [ $(ping -c 1 -q 10\.10\.10\.10 >&/dev/null; echo $?) -eq 0 ];then
 	colour green "[+] Connectivity checks completed!" 2
 	colour green "[+] You are connected to the TryHackMe Network" 2
-	printf "Your TryHackMe IP address is: $(ip a show tun0 | grep -oE "10\.(2|4|6|8|9|11|13|14|50)\.[0-9]{1,3}\.[0-9]{1,3}" | head -1)\n"
+	printf "Your TryHackMe IP address is: $(curl -s http://10.10.10.10/whoami)\n\n"
 	colour green "Happy Hacking!" 3
 else
 	colour red "[-] Something went wrong -- please ask for further assistance in the TryHackMe Discord server, subreddit, or forum" 3
