@@ -137,6 +137,8 @@ if [ ${#ovpn} -eq 0 ]; then
 		colour red "[-] Exiting" 2
 		fin
 	fi
+else
+	colour process "[i] Using $ovpn file to connect" 1
 fi
 
 
@@ -190,59 +192,18 @@ else
 	colour green "[+] OpenVPN is installed" 1	
 fi
 
+#Check that the server the user chose is online
 
-#Check that a tun0 exists
-if ! ip a | grep -q tun0; then
-	colour red "[-] tun0 interface does not exist" 1
-	printf "Would you like the script to attempt a connection automatically (Y/n)? "
-	read -p "" choice
-	case "$choice" in
-		n|N)
-			printf "\n\nPlease connect to the vpn using the following command:\n"
-			colour code "sudo openvpn $ovpn"
-			printf "\n"
-			colour red "[-] Exiting" 2
-			fin
-			;;
-		*)
-			if connect; then
-				exit 0
-			fi
-			;;
-	esac
+#Grabs the IP from the users ovpn config file and checks if it is up or not
+serverIP="$(grep -o '[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}' $ovpn)"
+
+if [ $(ping -c 1 -q $serverIP>&/dev/null; echo $?)  -gt 0 ]; then
+	colour red "[-] The OpenVPN server seems to be down. Please check manually and/or reach out to the folks on the discord server" 1
+	colour red "[-] Exiting" 2
+	fin
 else
-	colour green "[+] tun0 exists" 1
-fi	
-
-
-#Check that the tun0 IP is in the right range
-if ! ip a show tun0 | grep -qoE "10\.(2|4|6|8|9|11|13|14|17|50)\.[0-9]{1,3}\.[0-9]{1,3}" | head -1; then
-	colour red "[-] tun0 ip is in the wrong range: $(ip addr show tun0 | grep "inet " | awk '{print $2}')" 1
-	read -p "Would you like the script to attempt to fix this (Y/n)? " choice
-	case "$choice" in
-		n|N)
-			printf "\n\nIf you're using another VPN, please check that it isn't operating on tun0\nOtherwise please regenerate your TryHackMe VPN config pack, or try another server.\n"
-			colour red "[-] Exiting" 2
-			fin
-			;;
-		*)
-			colour green "[+] Resetting tun0 interface" 1
-			ip link delete tun0
-			if connect; then
-				exit 0
-			elif ! ip a | grep -qoE "10\.(2|4|6|8|9|11|13|14|17|50)\.[0-9]{1,3}\.[0-9]{1,3}" | head -1; then
-				colour red "[-] Fatal Error: tun0 IP still in the wrong range: $(ip addr show tun0 | grep "inet " | awk '{print $2}')" 1
-				printf "Please try switching servers and/or regenerating your VPN config\n"
-				colour red "[-] Exiting" 2
-				fin
-			fi
-			;;
-	esac
-else
-	colour green "[+] tun0 IP is in the correct range" 1
+	colour green "[+] OpenVPN server is up" 1
 fi
-
-
 
 #Check for multivpn
 connections=$(ps aux | grep -v "sudo\|grep" | grep -Eo "openvpn .*\.ovpn" | wc -l)
