@@ -266,6 +266,51 @@ else
 	colour green "[+] Only one instance of OpenVPN is running" 1
 fi
 
+#Check MTU value
+# default mtu is 1500, but get value from the actual tun interface
+mtu=$(ip a s tun0 | grep mtu | awk '{print $5}')
+while true; do
+	# ping THM machine without breaking the packet into fragments. If fails, packet too big
+	# Usually 30 bytes are required for the vpn additions in the packet
+	# -M do disables packet fragmentation
+	# -s sets packet size
+	# -W sets timeout (0.1 seconds)
+	# -c only send 1 ping
+	if [ $(ping -M do -s $mtu -W 0.1 -c 1 10.10.10.10 >&/dev/null; echo $?) -gt 0 ]; then
+		mtu=$((mtu-10))
+	# if ping goes through, that's a working MTU value
+	else
+		#1470+30 = 1500, default MTU
+		if [[ $mtu -eq 1470 ]]; then
+			colour green "[+] MTU value OK" 1
+			break
+		else
+			colour red "[-] MTU not working with default value 1500"
+			mtu=$((mtu+30))
+			$(sudo ip link set dev tun0 mtu $mtu)
+			colour green "[+] MTU set at $mtu in tun0"
+			# fix connection and the ovpn file
+			read -p "Would you like the script to set the MTU value permanently in your .ovpn file (Y/n)? " choice
+			case $choice in
+				n|N)
+					colour green "[+] You can set the value manually in your .ovpn file with the following line:"
+					colour code "tun-mtu $mtu"
+					;;
+				*)
+					if [ $(grep "thm-troubleshoot" $ovpn >&/dev/null; echo $?) -eq 0 ]; then
+						sed -i "s/tun-mtu.*/tun-mtu $mtu/g" $ovpn
+						colour green "[+] .ovpn file MTU value changed"
+					else
+						sed -i "1i# Added by the thm-troubleshoot script\n# The MTU value might need to be changed depending on your network. Default is 1500\ntun-mtu $mtu\n" $ovpn
+						colour green "[+] .ovpn file MTU value and comment added"
+					fi
+					;;
+			esac
+			break
+		fi
+	fi
+done
+
 #Final Check
 colour process "[+] Confirming connectivity" 1
 if [ $(ping -c 1 -q 10\.10\.10\.10 >&/dev/null; echo $?) -eq 0 ];then
