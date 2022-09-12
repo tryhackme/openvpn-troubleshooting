@@ -16,6 +16,9 @@ colour(){
 		"red")
 			printf "\033[01;31m$2\033[0m\n"
 			;;
+		"yellow")
+			printf "\033[01;93m$2\033[0m\n"
+			;;
 		"header")
 			printf "\033[0;1;4m$2\033[0m\n"
 			;;
@@ -119,7 +122,7 @@ if [[ $EUID -ne 0 ]]; then
 	fin
 fi
 
-
+# TODO add a check for network vpn files and/or other vpn configs - how to differentiate main THM VPN config from others?
 #Find the VPN Config
 ovpn=$(find . -maxdepth 1 -name "*.ovpn" -print -quit)
 if [ ${#ovpn} -eq 0 ]; then
@@ -268,28 +271,41 @@ fi
 
 #Check MTU value
 # default mtu is 1500, but get value from the actual tun interface
-mtu=$(ip a s tun0 | grep mtu | awk '{print $5}')
+origin_mtu=$(cat /sys/class/net/tun0/mtu)
+# Usually 30 bytes are needed for the vpn additions in the packet
+mtu=$((origin_mtu-30))
+
+colour process "[+] Confirming connectivity" 2
+
 while true; do
 	# ping THM machine without breaking the packet into fragments. If fails, packet too big
-	# Usually 30 bytes are required for the vpn additions in the packet
 	# -M do disables packet fragmentation
 	# -s sets packet size
-	# -W sets timeout (0.1 seconds)
+	# -W sets timeout (1 second) (second fractions not working in Ubuntu ping, wtf?)
 	# -c only send 1 ping
-	if [ $(ping -M do -s $mtu -W 0.1 -c 1 10.10.10.10 >&/dev/null; echo $?) -gt 0 ]; then
-		mtu=$((mtu-10))
+	if [ $(ping -M do -s $mtu -W 1 -c 1 10.10.10.10 >&/dev/null; echo $?) -gt 0 ]; then
+		# A very rare case would be an MTU value below 1000 not working. If that happens, something else is probably wrong - break the MTU check
+		if [[ $mtu -lt 1000 ]]; then
+			colour red "[-] MTU value failed at 1000, aborting MTU check"
+			break
+		fi
+		# decrease MTU until it goes through
+		mtu=$((mtu-30))
 	# if ping goes through, that's a working MTU value
 	else
-		#1470+30 = 1500, default MTU
-		if [[ $mtu -eq 1470 ]]; then
+		# Add the 30 bytes back
+		mtu=$((mtu+30))
+		# if working with the original value, nothing needs to be done
+		if [[ $mtu -eq $origin_mtu ]]; then
 			colour green "[+] MTU value OK" 1
 			break
 		else
-			colour red "[-] MTU not working with default value 1500"
-			mtu=$((mtu+30))
-			$(sudo ip link set dev tun0 mtu $mtu)
+			colour red "[-] MTU not working with the value of $origin_mtu"
+			# Fix the MTU in the interface
+			sudo ip link set dev tun0 mtu $mtu
 			colour green "[+] MTU set at $mtu in tun0"
-			# fix connection and the ovpn file
+			colour yellow "[!] Note that a working MTU value might change depending on your network condition"
+			# fix the ovpn file
 			read -p "Would you like the script to set the MTU value permanently in your .ovpn file (Y/n)? " choice
 			case $choice in
 				n|N)
@@ -312,7 +328,6 @@ while true; do
 done
 
 #Final Check
-colour process "[+] Confirming connectivity" 1
 if [ $(ping -c 1 -q 10\.10\.10\.10 >&/dev/null; echo $?) -eq 0 ];then
 	colour green "[+] Connectivity checks completed!" 2
 	colour green "[+] You are connected to the TryHackMe Network" 2
