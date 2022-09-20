@@ -276,7 +276,7 @@ while true; do
 	# -s sets packet size
 	# -W sets timeout (0.1 seconds)
 	# -c only send 1 ping
-	if [ $(ping -M do -s $mtu -W 0.1 -c 1 10.10.10.10 >&/dev/null; echo $?) -gt 0 ]; then
+	if [ $(ping -M do -s $mtu -W 1 -c 1 10.10.10.10 >&/dev/null; echo $?) -gt 0 ]; then
 		mtu=$((mtu-10))
 	# if ping goes through, that's a working MTU value
 	else
