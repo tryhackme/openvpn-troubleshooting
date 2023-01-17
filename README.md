@@ -2,12 +2,14 @@
 
 ### Сценарий для устранения неполадок при подключении к сети TryHackMe с помощью OpenVPN на Linux.
 Использование:
-* Download the `thm-troubleshoot` script. Saving it to the same place as your OpenVPN configuration pack (`~/Downloads` by default) is advisable, but not essential.
-* In your Linux terminal, make the script executable with `chmod +x <path-to-script>`. If you downloaded the script to your Downloads folder, this will be `chmod +x ~/Downloads/thm-troubleshoot`.
-* Run the script by typing `sudo` followed by the path to the script into your terminal and pressing enter. If the script is in your downloads, it will be the following command: `sudo ~/Downloads/thm-troubleshoot`.
-* The script will instruct you on how to proceed from there.
+* Загрузите скрипт thm-troubleshoot. Желательно сохранить его в том же месте, где находится ваш пакет конфигурации OpenVPN (по умолчанию ~/Downloads), но не обязательно.
+* В терминале Linux сделайте скрипт исполняемым с помощью chmod +x <path-to-script>. Если вы загрузили скрипт в папку Downloads, это будет chmod +x ~/Downloads/thm-troubleshoot.
+* Запустите сценарий, набрав в терминале команду sudo, затем путь к сценарию и нажав клавишу Enter. Если скрипт находится в загружаемых файлах, это будет следующая команда: sudo ~/Downloads/thm-troubleshoot.
+* Сценарий проинструктирует вас о том, как действовать дальше.
 
-**Disclaimer -- this script is designed to work on Kali, Ubuntu, or other Debian based systems to solve basic OpenVPN errors. If you're using a non-recommended distribution then it is assumed that you can also troubleshoot these errors manually** 
+**Отказ от ответственности -- этот скрипт предназначен для работы на Kali, Ubuntu или других системах на базе Debian для решения основных ошибок OpenVPN. Если вы используете не рекомендованный дистрибутив, предполагается, что вы можете устранить эти ошибки вручную.** 
 
-Any question or issues (or if connectivity problems persist), please ask in the [TryHackMe Discord server](https://discord.gg/F7ERYzz).
-Happy Hacking!
+Любые вопросы или проблемы (или если проблемы с подключением сохраняются), пожалуйста, задавайте на сервере [TryHackMe Discord server](https://discord.gg/F7ERYzz).
+Счастливого взлома!
+
+Оригинальный репозиторий [tryhackme/openvpn-troubleshooting](https://github.com/tryhackme/openvpn-troubleshooting).
