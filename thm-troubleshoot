@@ -48,7 +48,7 @@ fin(){
 connect(){
 	testSuccess() ( if grep -qio "Initialization Sequence Completed" $ovpnoutput;then return 0; else return 1;fi )
 	testCert() ( if grep -qioE "Cannot load inline certificate file|certificate verify failed|cannot load CA" $ovpnoutput;then return 0; else return 1;fi )
-	testCipher() ( if grep -qio "OpenVPN ignores --cipher for cipher negotiations|OPTIONS ERROR: failed to negotiate cipher with server" $ovpnoutput;then return 0; else return 1;fi )
+	testCipher() ( if grep -qioE "OpenVPN ignores --cipher for cipher negotiations|OPTIONS ERROR: failed to negotiate cipher with server" $ovpnoutput;then return 0; else return 1;fi )
 	ovpnoutput=$(mktemp)
 	openvpn $ovpn </dev/null &>$ovpnoutput &
 	colour process "[+] Connecting...." 10
