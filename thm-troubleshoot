@@ -85,6 +85,9 @@ connect(){
 	done
 }
 
+distro_call=$("lsb_release" "-is")
+distro="${distro_call[*]}"
+
 #Title
 title(){
 	printf "\n\n\033[0;1;32m"
@@ -97,7 +100,14 @@ title(){
 	           |___/
 
 EOF
-	printf "\033[0;35m						@MuirlandOracle\033[0m\n\n\n"
+if [[ -n $distro ]]; then
+  printf "\033[38;2;216;1;81mLooks like you're running %s \033[0m" "$distro"
+else
+  printf "\033[38;2;216;1;81mLinux distro not recognized \033[0m"
+fi
+
+
+  printf "\033[0;35m						@MuirlandOracle\033[0m\n\n\n"
 }
 
 
@@ -163,8 +173,23 @@ else
 fi
 
 
+# Determine package manager being used to create variables
+if pacman -V &>/dev/null; then 
+  pkg_manager_status=("pacman" "-V");
+  is_openvpn_installed=("pacman" "-Qs" "openvpn");
+  pkg_manager_update=("pacman" "-Syy");
+  install_openvpn=("pacman" "-S" "openvpn" "--noconfirm");
+fi
+
+if dpkg-query -W -f='${Status}' apt &>/dev/null; then
+  pkg_manager_status=("dpkg-query" "-W" "-f='${Status}'" "apt")
+  is_openvpn_installed=("dpkg-query" "-W" "-f='${Status}'" "openvpn")
+  pkg_manager_update=("apt" "update")
+  install_openvpn=("apt" "install" "openvpn" "-y")
+fi
+
 #Ensure that Openvpn is installed
-if ! dpkg-query -W -f='${Status}' openvpn &>/dev/null; then
+if ! "${is_openvpn_installed[@]}" &>/dev/null; then
 	colour red "[-] OpenVPN is not installed" 1
 	read -p "Would you like to install OpenVPN automatically (Y/n)? " choice
 	case "$choice" in
@@ -174,12 +199,12 @@ if ! dpkg-query -W -f='${Status}' openvpn &>/dev/null; then
 			fin
 			;;
 		*)
-			if  ! dpkg-query -W -f='${Status}' apt &>/dev/null; then
-				colour red "[-] System doesn't use apt -- please install OpenVPN manually" 1
+			if  ! "${pkg_manager_status[@]}" &>/dev/null; then
+				colour red "[-] System doesn't use apt or pacman -- please install OpenVPN manually" 1
 				colour red "[-] Exiting" 2
 				fin
 			else
-				apt update &>/dev/null && apt install openvpn -y &>/dev/null & pid=$!
+				"${pkg_manager_update[@]}" &>/dev/null && "${install_openvpn[@]}" &>/dev/null & pid=$!
 				colour process "[+] Installing OpenVPN..."
 				while :; do
         			running=$(ps aux | grep $pid | wc -l)
@@ -187,7 +212,7 @@ if ! dpkg-query -W -f='${Status}' openvpn &>/dev/null; then
                 		break
         			fi
 				done
-				if dpkg-query -W -f='${Status}' openvpn &>/dev/null; then
+				if "${is_openvpn_installed[@]}" &>/dev/null; then
 					colour green "[+] Installation Process Completed" 1
 				else
 					colour red "[-] Installation failed. Please try installing OpenVPN manually -- otherwise ask for further assistance in the TryHackMe Discord server, subreddit or forum" 1
