@@ -45,6 +45,46 @@ fin(){
 	exit 1
 }
 
+# allow user to pass -n/--no-interaction to skip all prompts
+NO_INTERACTION=false
+while [[ $# -gt 0 ]]
+do
+key="$1"
+
+case $key in
+    -n|--no-interaction)
+    NO_INTERACTION=true
+    shift
+    ;;
+    *)    # unknown option
+    shift # past argument
+    ;;
+esac
+done
+
+choose(){
+    local prompt=$1
+    local default=$2
+    local options=$3
+    local choice
+
+    if [ "$NO_INTERACTION" = true ]; then
+        choice=$default
+    else
+        read -p "$prompt ($options): " choice
+        choice=${choice:-$default}
+    fi
+
+    case $choice in
+        $options)
+            echo $choice
+            ;;
+        *)
+            echo $default
+            ;;
+    esac
+}
+
 connect(){
 	testSuccess() ( if grep -qio "Initialization Sequence Completed" $ovpnoutput;then return 0; else return 1;fi )
 	testCert() ( if grep -qioE "Cannot load inline certificate file|certificate verify failed|cannot load CA" $ovpnoutput;then return 0; else return 1;fi )
@@ -191,7 +231,7 @@ fi
 #Ensure that Openvpn is installed
 if ! "${is_openvpn_installed[@]}" &>/dev/null; then
 	colour red "[-] OpenVPN is not installed" 1
-	read -p "Would you like to install OpenVPN automatically (Y/n)? " choice
+	choice=$(choose "Would you like to install OpenVPN automatically?" "Y" "Y/n")
 	case "$choice" in
 		n|N)
 			printf "\n\nPlease install OpenVPN manually\n"
@@ -230,8 +270,7 @@ fi
 #Check that a tun0 exists
 if ! ip a | grep -q tun0; then
 	colour red "[-] tun0 interface does not exist" 1
-	printf "Would you like the script to attempt a connection automatically (Y/n)? "
-	read -p "" choice
+	choice=$(choose "Would you like the script to attempt a connection automatically?" "Y" "Y/n")
 	case "$choice" in
 		n|N)
 			printf "\n\nPlease connect to the vpn using the following command:\n"
@@ -254,7 +293,7 @@ fi
 #Check that the tun0 IP is in the right range
 if ! ip a show tun0 | grep -qoE "10\.(2|4|6|8|9|11|13|14|17|50)\.[0-9]{1,3}\.[0-9]{1,3}" | head -1; then
 	colour red "[-] tun0 ip is in the wrong range: $(ip addr show tun0 | grep "inet " | awk '{print $2}')" 1
-	read -p "Would you like the script to attempt to fix this (Y/n)? " choice
+	choice=$(choose "Would you like the script to attempt to fix this?" "Y" "Y/n")
 	case "$choice" in
 		n|N)
 			printf "\n\nIf you're using another VPN, please check that it isn't operating on tun0\nOtherwise please regenerate your TryHackMe VPN config pack, or try another server.\n"
@@ -284,7 +323,7 @@ fi
 connections=$(ps aux | grep -v "sudo\|grep" | grep -Eo "openvpn .*\.ovpn" | wc -l)
 if [ $connections -gt 1 ]; then
 	colour red "[-] More than one connection running" 1
-	read -p "Would you like the script to attempt to fix this (Y/n)? " choice
+	choice=$(choose "Would you like the script to attempt to fix this?" "Y" "Y/n")
 	case $choice in
 		n|N)
 			printf "\n\nPlease run the following command, then reconnect manually:\n"
@@ -339,7 +378,7 @@ while true; do
 			colour green "[+] MTU set at $mtu in tun0"
 			colour yellow "[!] Note that a working MTU value might change depending on your network condition"
 			# fix the ovpn file
-			read -p "Would you like the script to set the MTU value permanently in your .ovpn file (Y/n)? " choice
+			choice=$(choose "Would you like the script to set the MTU value permanently in your .ovpn file?" "Y" "Y/n")
 			case $choice in
 				n|N)
 					colour green "[+] You can set the value manually in your .ovpn file with the following line:"
