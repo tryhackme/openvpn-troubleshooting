@@ -85,7 +85,13 @@ connect(){
 	done
 }
 
-distro_call=$("lsb_release" "-is")
+if command -v lsb_release >/dev/null 2>&1; then
+    distro_call=$(lsb_release -is)
+elif [ -f /etc/os-release ]; then
+    distro_call=$(grep '^ID=' /etc/os-release | cut -d'=' -f2 | tr -d '"')
+else
+    distro_call=$(uname -s)
+fi
 distro="${distro_call[*]}"
 
 #Title
