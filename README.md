@@ -1,17 +1,48 @@
 # TryHackMe OpenVPN Troubleshooting Script
 
-### Script to troubleshoot connectivity to the TryHackMe network using OpenVPN on Linux.
+Script to troubleshoot connectivity to the TryHackMe network using OpenVPN on Linux.
 
-Usage:
+## Usage
 
-- Download the `thm-troubleshoot` script. Saving it to the same place as your OpenVPN configuration pack (`~/Downloads` by default) is advisable, but not essential.
-- In your Linux terminal, make the script executable with `chmod +x <path-to-script>`. If you downloaded the script to your Downloads folder, this will be `chmod +x ~/Downloads/thm-troubleshoot`.
-- Run the script by typing `sudo` followed by the path to the script into your terminal and pressing enter. If the script is in your downloads, it will be the following command: `sudo ~/Downloads/thm-troubleshoot`.
-- The script will instruct you on how to proceed from there.
+1. Download the `thm-troubleshoot` script
+2. Save it in the same folder as your `.ovpn` config file (or provide the path when prompted)
+3. Make it executable: `chmod +x thm-troubleshoot`
+4. Run with sudo: `sudo ./thm-troubleshoot`
+5. Follow the on-screen instructions
 
-**Disclaimer -- this script was originally designed to work on Kali, Ubuntu, or other Debian based systems to solve basic OpenVPN errors. If you're using a non-recommended distribution then it is assumed that you can also troubleshoot these errors manually**
+**Check version:** `./thm-troubleshoot --version`
 
-**March 2023 update -- the script has been updated to support Arch linux users! With that said, Arch is still a non-recommended distribution. Using this flavor of linux is almost certainly guaranteed to lead to other more specific connection issues that this script won't be able to cover, ultimately taking away from the learning experience at TryHackMe. Use it at your own discretion.**
+## Supported Distros
 
-Any question or issues (or if connectivity problems persist), please ask in the [TryHackMe Discord server](https://discord.gg/F7ERYzz).
-Happy Hacking!
+- **Debian/Ubuntu** (apt)
+- **Arch Linux** (pacman)
+- **Fedora/RHEL** (dnf)
+
+Other distributions should work but may require manual OpenVPN installation.
+
+## What This Script Checks
+
+- Internet connectivity
+- OpenVPN installation (offers to install if missing)
+- VPN connection and tun0 interface
+- Correct IP range (192.168.x.x for current infrastructure)
+- Multiple VPN connection conflicts
+- MTU issues
+- Routes to target VMs (10.x.x.x)
+
+## Known Issues
+
+### OpenVPN 2.5 (Ubuntu 22.04 and older)
+The new TryHackMe configs use inline `<auth-user-pass>` which requires OpenVPN 2.6+. The script will detect this and provide solutions.
+
+### Network Rooms
+This script does **not** support Network room VPNs (rooms with a network diagram at the top). Those use separate configs downloadable from the [Access page](https://tryhackme.com/manage-account/access).
+
+## Links
+
+- [TryHackMe Access Page](https://tryhackme.com/manage-account/access) - Download VPN configs
+- [TryHackMe Discord](https://discord.gg/tryhackme) - Get help from the community
+
+---
+
+**Note:** Make sure your VPN server region matches your target VM region in the Access page settings.

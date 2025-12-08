@@ -2,7 +2,17 @@
 # TryHackMe VPN Troubleshooting
 # Updated for new VPN infra (192.168.x.x addressing)
 # Original: Jan 2021, V1.5, MuirlandOracle
-# Updated: 2025, V2.0
+# Updated: Dec 2025, V2.0
+#
+# NOTE: This script does NOT support Network room VPNs (rooms with network diagrams).
+#       Those use separate configs downloadable from the Access page.
+
+VERSION="2.0 (Dec 2025)"
+
+if [[ "$1" == "--version" || "$1" == "-v" ]]; then
+  echo "TryHackMe VPN Troubleshoot v$VERSION"
+  exit 0
+fi
 
 ########################################
 # Colour Helper
@@ -39,6 +49,7 @@ fin() {
 connect() {
   local ovpnoutput
   ovpnoutput=$(mktemp)
+  trap "rm -f '$ovpnoutput'" RETURN
 
   testSuccess() (
     if grep -qio "Initialization Sequence Completed" "$ovpnoutput"; then
@@ -64,8 +75,16 @@ connect() {
     fi
   )
 
-  # Capture OpenVPN output for analysis
-  openvpn "$ovpn" &> "$ovpnoutput" &
+  testInlineAuth() (
+    if grep -qioE "option 'auth-user-pass' is not expected to be inline" "$ovpnoutput"; then
+      return 0
+    else
+      return 1
+    fi
+  )
+
+  # Capture OpenVPN output for analysis (</dev/null prevents stdin prompts from hanging)
+  openvpn "$ovpn" </dev/null &> "$ovpnoutput" &
   colour process "[+] Connecting...." 10
 
   for i in 1 2; do
@@ -75,9 +94,8 @@ connect() {
     elif testCert; then
       killall -9 openvpn &>/dev/null
       colour red "[-] Fatal Error: Inline Certificate is invalid" 1
-      printf "Please regenerate your VPN config on the access page (https://tryhackme.com/access)\n"
-      printf "If errors persist, change server then regenerate the config.\n"
-      printf "If all else fails, ask for further assistance on the TryHackMe Discord server, subreddit or forums.\n"
+      printf "Please re-download your VPN config at https://tryhackme.com/manage-account/access\n"
+      printf "If all else fails, ask for further assistance on the TryHackMe Discord server.\n"
       colour red "[-] Exiting" 2
       return 1
     elif testCipher; then
@@ -88,6 +106,23 @@ connect() {
       colour green "[+] Please connect to the VPN using the following command: "
       colour code "sudo openvpn \"$ovpn\"" 2
       return 1
+    elif testInlineAuth; then
+      killall -9 openvpn &>/dev/null
+      colour red "[-] Your OpenVPN version does not support inline authentication" 1
+      colour yellow "[!] The TryHackMe config uses inline <auth-user-pass> which requires OpenVPN 2.6+" 1
+      printf "\nYour options:\n"
+      printf "  1. Update OpenVPN to version 2.6 or later\n"
+      printf "     - Ubuntu 24.04+ and other recent distros have OpenVPN 2.6 by default\n"
+      printf "     - For older distros, search for 'install OpenVPN 2.6 <your distro>'\n"
+      printf "\n"
+      printf "  2. Extract credentials to a separate file:\n"
+      printf "     - Open your .ovpn file and find the <auth-user-pass> section\n"
+      printf "     - Copy the 2 lines between <auth-user-pass> and </auth-user-pass> to a new file (e.g. auth.txt)\n"
+      printf "     - Remove the <auth-user-pass>...</auth-user-pass> block from the .ovpn file\n"
+      printf "     - Change 'auth-user-pass' to 'auth-user-pass /path/to/auth.txt'\n"
+      printf "\n"
+      colour red "[-] Exiting" 2
+      return 1
     fi
 
     if [ "$i" -eq 1 ]; then
@@ -96,8 +131,7 @@ connect() {
       killall -9 openvpn &>/dev/null
       colour red "[-] Failed to connect" 1
       printf "Failure to connect to the VPN can usually be solved by one of the following options:\n"
-      printf " - Regenerating your OpenVPN config on the TryHackMe access page (https://tryhackme.com/access)\n"
-      printf " - Switching servers, then regenerating your OpenVPN config\n"
+      printf " - Re-downloading your OpenVPN config at https://tryhackme.com/manage-account/access\n"
       printf " - Checking your system time. If your system time is incorrect then this can cause issues with the authentication process\n"
       printf "If none of these methods work, please ask for further assistance in the TryHackMe Discord server, subreddit or forums.\n"
       colour red "[-] Exiting" 2
@@ -278,12 +312,23 @@ vpn_expected_regex="192\.168\.[0-9]{1,3}\.[0-9]{1,3}"
 
 if ! ip a show tun0 | grep -qoE "$vpn_expected_regex"; then
   tun_ip=$(ip addr show tun0 | awk '/inet / {print $2}')
-  colour red "[-] tun0 IP is in the wrong range: $tun_ip" 1
-  read -p "Would you like the script to attempt to fix this (Y/n)? " choice
+
+  colour red "[-] tun0 IP is not in the expected range: $tun_ip" 1
+  colour yellow "[!] The TryHackMe VPN should assign you a 192.168.x.x address." 1
+
+  printf "\nThis could mean:\n"
+  printf "  1. You are using an OUTDATED TryHackMe VPN config\n"
+  printf "  2. You are connected to a NETWORK ROOM VPN (this script does not support those)\n"
+  printf "  3. You have a different VPN connected, or the wrong .ovpn file in this directory\n"
+
+  printf "\nTo fix:\n"
+  printf "  - Download a fresh config from https://tryhackme.com/manage-account/access\n"
+  printf "  - Make sure the VPN server region matches your target VM region\n"
+  printf "  - Disconnect any other VPNs that might be using tun0\n\n"
+
+  read -p "Would you like the script to attempt to fix this by reconnecting (Y/n)? " choice
   case "$choice" in
     n|N)
-      printf "\n\nIf you're using another VPN, please check that it isn't operating on tun0\n"
-      printf "Otherwise please regenerate your TryHackMe VPN config pack, or try another server.\n"
       colour red "[-] Exiting" 2
       fin
       ;;
@@ -296,8 +341,8 @@ if ! ip a show tun0 | grep -qoE "$vpn_expected_regex"; then
 
       if ! ip a show tun0 | grep -qoE "$vpn_expected_regex"; then
         tun_ip=$(ip addr show tun0 | awk '/inet / {print $2}')
-        colour red "[-] Fatal Error: tun0 IP still in the wrong range: $tun_ip" 1
-        printf "Please try switching servers and/or regenerating your VPN config\n"
+        colour red "[-] tun0 IP still not in expected range: $tun_ip" 1
+        printf "Please download a fresh config from https://tryhackme.com/manage-account/access\n"
         colour red "[-] Exiting" 2
         fin
       fi
@@ -342,11 +387,37 @@ origin_mtu=$(cat /sys/class/net/tun0/mtu 2>/dev/null)
 if [ -n "$origin_mtu" ]; then
   mtu=$((origin_mtu - 30))
 
-  colour process "[+] Confirming connectivity to VPN server ($vpn_server_ip) and optimising MTU" 2
+  colour process "[+] Confirming connectivity to VPN server ($vpn_server_ip)..." 1
 
-  while true; do
+  # Wait for basic connectivity before testing MTU (connection can take a moment to stabilise)
+  for attempt in {1..10}; do
+    if ping -c 1 -W 2 "$vpn_server_ip" >&/dev/null; then
+      break
+    fi
+    if [ "$attempt" -eq 10 ]; then
+      colour warning "Could not reach VPN server after 10 attempts – skipping MTU optimisation" 1
+      origin_mtu=""  # Skip MTU check
+    fi
+    sleep 1
+  done
+
+  if [ -n "$origin_mtu" ]; then
+    colour process "[+] Optimising MTU..." 1
+  fi
+
+  while [ -n "$origin_mtu" ]; do
     # Ping the VPN server without fragmenting packets
-    if ! ping -M do -s "$mtu" -W 1 -c 1 "$vpn_server_ip" >&/dev/null; then
+    # Retry once before assuming MTU is too large (handles transient packet loss)
+    mtu_ok=false
+    for _retry in 1 2; do
+      if ping -M do -s "$mtu" -W 2 -c 2 "$vpn_server_ip" >&/dev/null; then
+        mtu_ok=true
+        break
+      fi
+      sleep 1
+    done
+
+    if [ "$mtu_ok" = false ]; then
       if [[ "$mtu" -lt 1000 ]]; then
         colour warning "MTU value failed at 1000, aborting MTU optimisation" 1
         break
@@ -376,7 +447,15 @@ if [ -n "$origin_mtu" ]; then
               sed -i "s/tun-mtu.*/tun-mtu $mtu/g" "$ovpn"
               colour green "[+] .ovpn file MTU value changed" 1
             else
-              sed -i "1i# Added by the thm-troubleshoot script\n# The MTU value might need to be changed depending on your network.\n# Default is 1500\ntun-mtu $mtu\n" "$ovpn"
+              # Prepend MTU setting with comment to ovpn file
+              {
+                echo "# Added by the thm-troubleshoot script"
+                echo "# The MTU value might need to be changed depending on your network."
+                echo "# Default is 1500"
+                echo "tun-mtu $mtu"
+                echo ""
+                cat "$ovpn"
+              } > "${ovpn}.tmp" && mv "${ovpn}.tmp" "$ovpn"
               colour green "[+] .ovpn file MTU value and comment added" 1
             fi
             ;;
@@ -393,10 +472,11 @@ fi
 # Check that 10.X routes exist (NEW)
 ########################################
 if ip route | awk '{print $1}' | grep -qE '^10\.'; then
-  colour green "[+] 10.X.X.X routes detected – you should be able to reach target VMs for your region" 1
+  colour green "[+] 10.X.X.X routes detected – target VM routes are present" 1
+  colour yellow "[!] Make sure your VPN server region matches your VM region in https://tryhackme.com/manage-account/access" 1
 else
   colour warning "No 10.X.X.X routes detected – you may not be able to reach TryHackMe target VMs" 1
-  colour warning "If you cannot reach lab IPs, try regenerating your config or switching server on the Access page." 1
+  colour warning "Try re-downloading your config at https://tryhackme.com/manage-account/access" 1
 fi
 
 ########################################
@@ -410,7 +490,7 @@ if ping -c 1 -q "$vpn_server_ip" >&/dev/null; then
   colour green "Happy Hacking!" 3
 else
   colour red "[-] Unable to reach the VPN server at $vpn_server_ip" 1
-  colour red "[-] Something went wrong -- please ask for further assistance in the TryHackMe Discord server, subreddit, or forum" 3
+  colour red "[-] Something went wrong -- please ask for further assistance in the TryHackMe Discord server." 3
 fi
 
 printf "\n"
